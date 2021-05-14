@@ -252,6 +252,12 @@ fun BodyResolveComponents.transformQualifiedAccessUsingSmartcastInfo(
 ): FirQualifiedAccessExpression {
     val (stability, typesFromSmartCast) = dataFlowAnalyzer.getTypeUsingSmartcastInfo(qualifiedAccessExpression)
         ?: return qualifiedAccessExpression
+    val smartcastStability = stability.impliedSmartcastStability
+        ?: if (dataFlowAnalyzer.isAccessToUnstableLocalVariable(qualifiedAccessExpression)) {
+            SmartcastStability.CAPTURED_VARIABLE
+        } else {
+            SmartcastStability.STABLE_VALUE
+        }
     val originalType = qualifiedAccessExpression.resultType.coneType
     // For example, if (x == null) { ... },
     //   we don't want to smartcast to Nothing?, but we want to record the nullability to its own kind of node.
@@ -275,8 +281,7 @@ fun BodyResolveComponents.transformQualifiedAccessUsingSmartcastInfo(
             smartcastType = intersectedTypeRefWithoutNullableNothing
             // NB: Nothing? in types from smartcast in DFA is recorded here (and the expression kind itself).
             this.typesFromSmartCast = typesFromSmartCast
-            // TODO: differentiate capture local variable
-            this.smartcastStability = stability.impliedSmartcastStability ?: SmartcastStability.STABLE_VALUE
+            this.smartcastStability = smartcastStability
         }
     }
     val allTypes = typesFromSmartCast.also {
@@ -294,8 +299,7 @@ fun BodyResolveComponents.transformQualifiedAccessUsingSmartcastInfo(
         originalExpression = qualifiedAccessExpression
         smartcastType = intersectedTypeRef
         this.typesFromSmartCast = typesFromSmartCast
-        // TODO: differentiate capture local variable
-        this.smartcastStability = stability.impliedSmartcastStability ?: SmartcastStability.STABLE_VALUE
+        this.smartcastStability = smartcastStability
     }
 }
 

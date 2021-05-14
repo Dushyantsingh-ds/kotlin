@@ -24009,6 +24009,16 @@ public class DiagnosisCompilerTestFE10TestdataTestGenerated extends AbstractDiag
                     runTest("compiler/testData/diagnostics/tests/smartCasts/variables/assignmentConversion.kt");
                 }
 
+                @TestMetadata("capturedByAtLeastOnce.kt")
+                public void testCapturedByAtLeastOnce() throws Exception {
+                    runTest("compiler/testData/diagnostics/tests/smartCasts/variables/capturedByAtLeastOnce.kt");
+                }
+
+                @TestMetadata("capturedByMultipleLambdas.kt")
+                public void testCapturedByMultipleLambdas() throws Exception {
+                    runTest("compiler/testData/diagnostics/tests/smartCasts/variables/capturedByMultipleLambdas.kt");
+                }
+
                 @TestMetadata("doWhileWithMiddleBreak.kt")
                 public void testDoWhileWithMiddleBreak() throws Exception {
                     runTest("compiler/testData/diagnostics/tests/smartCasts/variables/doWhileWithMiddleBreak.kt");
@@ -31290,6 +31300,11 @@ public class DiagnosisCompilerTestFE10TestdataTestGenerated extends AbstractDiag
             @TestMetadata("kt10463.kt")
             public void testKt10463() throws Exception {
                 runTest("compiler/testData/diagnostics/testsWithStdLib/smartcasts/kt10463.kt");
+            }
+
+            @TestMetadata("lambdaInCallArgs.kt")
+            public void testLambdaInCallArgs() throws Exception {
+                runTest("compiler/testData/diagnostics/testsWithStdLib/smartcasts/lambdaInCallArgs.kt");
             }
 
             @TestMetadata("lazyDeclaresAndModifies.kt")
