@@ -15,13 +15,12 @@ import org.jetbrains.kotlin.fir.visitors.transformSingle
 
 class FirPartiallyResolvedArgumentList internal constructor(
     override var source: FirSourceElement?,
-    private var _mapping: LinkedHashMap<FirExpression, FirValueParameter?>
-) : FirArgumentList() {
+    private var _mapping: LinkedHashMap<FirExpression, FirValueParameter?>,
+) : FirArgumentList(), FirArgumentListWithResolutionInfo {
 
     @Suppress("UNCHECKED_CAST")
-    val mapping: LinkedHashMap<FirExpression, FirValueParameter> =
+    override val mapping: LinkedHashMap<FirExpression, FirValueParameter> =
         _mapping.filterValues { it != null } as LinkedHashMap<FirExpression, FirValueParameter>
-
 
     override val arguments: List<FirExpression>
         get() = _mapping.keys.toList()

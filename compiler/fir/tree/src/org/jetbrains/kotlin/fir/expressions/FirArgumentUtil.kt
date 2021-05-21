@@ -5,7 +5,6 @@
 
 package org.jetbrains.kotlin.fir.expressions
 
-import org.jetbrains.kotlin.fir.FirSourceElement
 import org.jetbrains.kotlin.fir.declarations.FirValueParameter
 import org.jetbrains.kotlin.fir.expressions.builder.buildArgumentList
 import org.jetbrains.kotlin.fir.expressions.impl.FirArraySetArgumentList
@@ -24,8 +23,9 @@ fun buildBinaryArgumentList(left: FirExpression, right: FirExpression): FirArgum
 fun buildArraySetArgumentList(rValue: FirExpression, indexes: List<FirExpression>): FirArgumentList =
     FirArraySetArgumentList(rValue, indexes)
 
-fun buildResolvedArgumentList(mapping: LinkedHashMap<FirExpression, FirValueParameter>): FirResolvedArgumentList =
-    FirResolvedArgumentList(mapping)
+fun buildResolvedArgumentList(
+    mapping: LinkedHashMap<FirExpression, FirValueParameter>
+): FirResolvedArgumentList = FirResolvedArgumentList(mapping)
 
 fun buildPartiallyResolvedArgumentList(
     original: FirArgumentList,
@@ -33,7 +33,7 @@ fun buildPartiallyResolvedArgumentList(
 ): FirArgumentList {
     return FirPartiallyResolvedArgumentList(
         original.source,
-        original.arguments.map { key -> key to mapping[key] }.toMap(LinkedHashMap())
+        original.arguments.map { key -> key to mapping[key] }.toMap(LinkedHashMap()),
     )
 }
 

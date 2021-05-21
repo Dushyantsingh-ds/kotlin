@@ -15,14 +15,21 @@ import org.jetbrains.kotlin.fir.references.FirNamedReference
 import org.jetbrains.kotlin.fir.references.builder.buildErrorNamedReference
 import org.jetbrains.kotlin.fir.references.builder.buildResolvedCallableReference
 import org.jetbrains.kotlin.fir.references.builder.buildResolvedNamedReference
-import org.jetbrains.kotlin.fir.resolve.*
-import org.jetbrains.kotlin.fir.resolve.calls.*
+import org.jetbrains.kotlin.fir.resolve.calls.Candidate
+import org.jetbrains.kotlin.fir.resolve.calls.FirErrorReferenceWithCandidate
+import org.jetbrains.kotlin.fir.resolve.calls.FirNamedReferenceWithCandidate
+import org.jetbrains.kotlin.fir.resolve.calls.varargElementType
+import org.jetbrains.kotlin.fir.resolve.constructFunctionalTypeRef
+import org.jetbrains.kotlin.fir.resolve.createFunctionalType
 import org.jetbrains.kotlin.fir.resolve.dfa.FirDataFlowAnalyzer
 import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeConstraintSystemHasContradiction
 import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeInapplicableCandidateError
 import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeTypeParameterInQualifiedAccess
+import org.jetbrains.kotlin.fir.resolve.firProvider
 import org.jetbrains.kotlin.fir.resolve.inference.*
+import org.jetbrains.kotlin.fir.resolve.propagateTypeFromQualifiedAccessAfterNullCheck
 import org.jetbrains.kotlin.fir.resolve.substitution.ConeSubstitutor
+import org.jetbrains.kotlin.fir.resolve.substitution.chain
 import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.FirArrayOfCallTransformer
 import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.remapArgumentsWithVararg
 import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.resultType
@@ -37,11 +44,15 @@ import org.jetbrains.kotlin.fir.types.builder.buildResolvedTypeRef
 import org.jetbrains.kotlin.fir.types.builder.buildStarProjection
 import org.jetbrains.kotlin.fir.types.builder.buildTypeProjectionWithVariance
 import org.jetbrains.kotlin.fir.types.impl.ConeTypeParameterTypeImpl
-import org.jetbrains.kotlin.fir.visitors.*
+import org.jetbrains.kotlin.fir.visitors.FirDefaultTransformer
+import org.jetbrains.kotlin.fir.visitors.FirTransformer
+import org.jetbrains.kotlin.fir.visitors.transformSingle
 import org.jetbrains.kotlin.resolve.calls.tower.isSuccess
 import org.jetbrains.kotlin.types.TypeApproximatorConfiguration
 import org.jetbrains.kotlin.types.Variance
 import org.jetbrains.kotlin.utils.addToStdlib.runIf
+import kotlin.collections.component1
+import kotlin.collections.component2
 
 class FirCallCompletionResultsWriterTransformer(
     override val session: FirSession,
@@ -180,7 +191,12 @@ class FirCallCompletionResultsWriterTransformer(
                 result.argumentList.transformArguments(this, expectedArgumentsTypeMapping)
                 if (calleeReference.isError) {
                     subCandidate.argumentMapping?.let {
-                        result.replaceArgumentList(buildPartiallyResolvedArgumentList(result.argumentList, it))
+                        result.replaceArgumentList(
+                            buildPartiallyResolvedArgumentList(
+                                result.argumentList,
+                                it
+                            )
+                        )
                     }
                 } else {
                     subCandidate.handleVarargs()
@@ -257,7 +273,12 @@ class FirCallCompletionResultsWriterTransformer(
         }
         if (calleeReference.isError) {
             subCandidate.argumentMapping?.let {
-                annotationCall.replaceArgumentList(buildPartiallyResolvedArgumentList(annotationCall.argumentList, it))
+                annotationCall.replaceArgumentList(
+                    buildPartiallyResolvedArgumentList(
+                        annotationCall.argumentList,
+                        it
+                    )
+                )
             }
         } else {
             subCandidate.handleVarargs()
@@ -432,7 +453,12 @@ class FirCallCompletionResultsWriterTransformer(
         delegatedConstructorCall.argumentList.transformArguments(this, argumentsMapping)
         if (calleeReference.isError) {
             subCandidate.argumentMapping?.let {
-                delegatedConstructorCall.replaceArgumentList(buildPartiallyResolvedArgumentList(delegatedConstructorCall.argumentList, it))
+                delegatedConstructorCall.replaceArgumentList(
+                    buildPartiallyResolvedArgumentList(
+                        delegatedConstructorCall.argumentList,
+                        it
+                    )
+                )
             }
         } else {
             subCandidate.handleVarargs()
@@ -766,6 +792,8 @@ class FirCallCompletionResultsWriterTransformer(
             }
         }
     }
+
+    private val Candidate.paramTypeSubstitutor: ConeSubstitutor get() = substitutor.chain(finalSubstitutor)
 }
 
 sealed class ExpectedArgumentType {

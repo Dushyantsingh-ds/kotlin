@@ -571,6 +571,7 @@ private fun buildArgumentMapping(
             ?: return null
         argument.toFirExpression(session, javaTypeParameterStack, parameter.returnTypeRef) to parameter
     }
+    // Java annotation does not allow type parameters. So an empty substitutor is enough.
     return buildResolvedArgumentList(mapping)
 }
 
