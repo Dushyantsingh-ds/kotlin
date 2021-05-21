@@ -470,6 +470,8 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
         }
 
         noImpl(userTypeRef)
+
+        noImpl(argumentList)
     }
 
     private fun configureAllImplementations() {
