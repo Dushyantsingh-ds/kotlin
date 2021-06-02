@@ -98,7 +98,11 @@ object IgnoreTests {
         } catch (e: Throwable) {
             if (testIsEnabled) {
                 if (directive is EnableOrDisableTestDirective.Disable) {
-                    handleTestWithWrongDirective(testPasses = false, testFile, directive, directivePosition, additionalFiles)
+                    try {
+                        handleTestWithWrongDirective(testPasses = false, testFile, directive, directivePosition, additionalFiles)
+                    } catch (e: AssertionError) {
+                        System.err.println(e.message)
+                    }
                 }
                 throw e
             }
@@ -213,6 +217,7 @@ object IgnoreTests {
         const val FIR_IDENTICAL = "// FIR_IDENTICAL"
 
         const val IGNORE_FE10_BINDING_BY_FIR = "// IGNORE_FE10_BINDING_BY_FIR"
+        const val IGNORE_FE10 = "// IGNORE_FE10"
     }
 
     enum class DirectivePosition {

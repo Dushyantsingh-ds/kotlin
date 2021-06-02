@@ -37,13 +37,9 @@ import org.jetbrains.kotlin.idea.search.KotlinSearchUsagesSupport.Companion.scri
 import org.jetbrains.kotlin.idea.util.application.runReadAction
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.psi.KtDeclaration
-import org.jetbrains.kotlin.psi.KtFile
-import org.jetbrains.kotlin.psi.KtImportDirective
-import org.jetbrains.kotlin.psi.KtNamedDeclaration
+import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.getNonStrictParentOfType
 import org.jetbrains.kotlin.types.expressions.OperatorConventions
-import java.util.*
 
 infix fun SearchScope.and(otherScope: SearchScope): SearchScope = intersectWith(otherScope)
 infix fun SearchScope.or(otherScope: SearchScope): SearchScope = union(otherScope)
@@ -166,4 +162,20 @@ fun PsiElement.getKotlinFqName(): FqName? = when (val element = namedUnwrappedEl
     }
     is KtNamedDeclaration -> element.fqName
     else -> null
+}
+
+/**
+ * Returns the segments of a qualified access PSI. For example, given `foo.bar.OuterClass.InnerClass`, this returns `["foo", "bar",
+ * "OuterClass", "InnerClass"]`.
+ */
+fun KtDotQualifiedExpression.fqNameSegments(): List<String>? {
+    val result: MutableList<String> = mutableListOf()
+    var current: KtExpression = this
+    while (current is KtDotQualifiedExpression) {
+        result += (current.selectorExpression as? KtNameReferenceExpression)?.getReferencedName() ?: return null
+        current = current.receiverExpression
+    }
+    result += (current as? KtNameReferenceExpression)?.getReferencedName() ?: return null
+    result.reverse()
+    return result
 }
