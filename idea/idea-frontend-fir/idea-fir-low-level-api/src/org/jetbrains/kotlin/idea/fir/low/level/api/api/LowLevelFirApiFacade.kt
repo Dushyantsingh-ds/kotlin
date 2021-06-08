@@ -7,7 +7,9 @@ package org.jetbrains.kotlin.idea.fir.low.level.api.api
 
 import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirPsiDiagnostic
-import org.jetbrains.kotlin.fir.declarations.*
+import org.jetbrains.kotlin.fir.declarations.FirDeclaration
+import org.jetbrains.kotlin.fir.declarations.FirFile
+import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
 import org.jetbrains.kotlin.idea.caches.project.IdeaModuleInfo
 import org.jetbrains.kotlin.idea.caches.project.getModuleInfo
 import org.jetbrains.kotlin.idea.fir.low.level.api.FirIdeResolveStateService
@@ -47,6 +49,25 @@ inline fun <R> KtDeclaration.withFirDeclaration(
     val firDeclaration = resolveState.findSourceFirDeclaration(this)
     firDeclaration.resolvedFirToPhase(phase, resolveState)
     return action(firDeclaration)
+}
+
+/**
+ * Creates [FirDeclaration] by [KtDeclaration] and executes an [action] on it
+ * [FirDeclaration] passed to [action] will be resolved at least to [phase] when executing [action] on it
+ *
+ * If resulted [FirDeclaration] is not [F] returns null without executing the action
+ *
+ * [FirDeclaration] passed to [action] should not be leaked outside [action] lambda
+ * Otherwise, some threading problems may arise,
+ */
+@OptIn(InternalForInline::class)
+inline fun <reified F : FirDeclaration, R> KtDeclaration.withFirDeclarationOfTypeOrNull(
+    resolveState: FirModuleResolveState,
+    phase: FirResolvePhase = FirResolvePhase.RAW_FIR,
+    action: (F) -> R
+): R? = withFirDeclaration(resolveState, phase) { firDeclaration ->
+    if (firDeclaration !is F) return null
+    action(firDeclaration)
 }
 
 /**
