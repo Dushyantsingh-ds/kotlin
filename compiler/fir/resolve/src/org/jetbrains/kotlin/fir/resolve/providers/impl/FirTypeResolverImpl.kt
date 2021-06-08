@@ -8,6 +8,9 @@ package org.jetbrains.kotlin.fir.resolve.providers.impl
 import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.ThreadSafeMutableState
+import org.jetbrains.kotlin.fir.declarations.FirEnumEntry
+import org.jetbrains.kotlin.fir.declarations.FirRegularClass
+import org.jetbrains.kotlin.fir.declarations.isEnumClass
 import org.jetbrains.kotlin.fir.diagnostics.ConeIntermediateDiagnostic
 import org.jetbrains.kotlin.fir.diagnostics.ConeSimpleDiagnostic
 import org.jetbrains.kotlin.fir.diagnostics.ConeUnexpectedTypeArgumentsError
@@ -16,9 +19,9 @@ import org.jetbrains.kotlin.fir.render
 import org.jetbrains.kotlin.fir.resolve.*
 import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeUnresolvedQualifierError
 import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeWrongNumberOfTypeArgumentsError
-import org.jetbrains.kotlin.fir.resolve.getSymbolByLookupTag
 import org.jetbrains.kotlin.fir.resolve.substitution.ConeSubstitutor
 import org.jetbrains.kotlin.fir.scopes.FirScope
+import org.jetbrains.kotlin.fir.symbols.AbstractFirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.ConeTypeParameterLookupTag
 import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.types.*
@@ -49,7 +52,7 @@ class FirTypeResolverImpl(private val session: FirSession) : FirTypeResolver() {
     private fun resolveToSymbol(
         typeRef: FirTypeRef,
         scope: FirScope
-    ): Pair<FirClassifierSymbol<*>?, ConeSubstitutor?> {
+    ): Pair<AbstractFirBasedSymbol<*>?, ConeSubstitutor?> {
         return when (typeRef) {
             is FirResolvedTypeRef -> {
                 val resultSymbol = typeRef.coneTypeSafe<ConeLookupTagBasedType>()?.lookupTag?.let(symbolProvider::getSymbolByLookupTag)
@@ -58,7 +61,7 @@ class FirTypeResolverImpl(private val session: FirSession) : FirTypeResolver() {
 
             is FirUserTypeRef -> {
                 val qualifierResolver = session.qualifierResolver
-                var resolvedSymbol: FirClassifierSymbol<*>? = null
+                var resolvedSymbol: AbstractFirBasedSymbol<*>? = null
                 var substitutor: ConeSubstitutor? = null
                 scope.processClassifiersByNameWithSubstitution(typeRef.qualifier.first().name) { symbol, substitutorFromScope ->
                     if (resolvedSymbol != null) return@processClassifiersByNameWithSubstitution
@@ -68,6 +71,7 @@ class FirTypeResolverImpl(private val session: FirSession) : FirTypeResolver() {
                                 symbol
                             } else {
                                 qualifierResolver.resolveSymbolWithPrefix(typeRef.qualifier, symbol.classId)
+                                    ?: qualifierResolver.resolveEnumEntrySymbol(typeRef.qualifier, symbol.classId)
                             }
                         }
                         is FirTypeParameterSymbol -> {
@@ -80,7 +84,7 @@ class FirTypeResolverImpl(private val session: FirSession) : FirTypeResolver() {
                 }
 
                 // TODO: Imports
-                val resultSymbol: FirClassifierSymbol<*>? = resolvedSymbol ?: qualifierResolver.resolveSymbol(typeRef.qualifier)
+                val resultSymbol: AbstractFirBasedSymbol<*>? = resolvedSymbol ?: qualifierResolver.resolveSymbol(typeRef.qualifier)
                 resultSymbol to substitutor
             }
 
@@ -92,14 +96,38 @@ class FirTypeResolverImpl(private val session: FirSession) : FirTypeResolver() {
         }
     }
 
+    private fun FirQualifierResolver.resolveEnumEntrySymbol(
+        qualifier: List<FirQualifierPart>,
+        classId: ClassId
+    ): FirVariableSymbol<FirEnumEntry>? {
+        // Assuming the current qualifier refers to an enum entry, we drop the last part so we get a reference to the enum class.
+        val enumClassSymbol = resolveSymbolWithPrefix(qualifier.dropLast(1), classId) ?: return null
+        val enumClassFir = enumClassSymbol.fir as? FirRegularClass ?: return null
+        if (!enumClassFir.isEnumClass) return null
+        val enumEntryMatchingLastQualifier = enumClassFir.declarations
+            .filterIsInstance<FirEnumEntry>()
+            .firstOrNull { it.name == qualifier.last().name }
+        return enumEntryMatchingLastQualifier?.symbol
+    }
+
     private fun resolveUserType(
         typeRef: FirUserTypeRef,
-        symbol: FirClassifierSymbol<*>?,
+        symbol: AbstractFirBasedSymbol<*>?,
         substitutor: ConeSubstitutor?,
-        areBareTypesAllowed: Boolean
+        areBareTypesAllowed: Boolean,
+        isOperandOfIsOperator: Boolean
     ): ConeKotlinType {
-        if (symbol == null) {
-            return ConeKotlinErrorType(ConeUnresolvedQualifierError(typeRef.render()))
+        if (symbol == null || symbol !is FirClassifierSymbol<*>) {
+            val diagnostic = if (symbol?.fir is FirEnumEntry) {
+                if (isOperandOfIsOperator) {
+                    ConeSimpleDiagnostic("'is' operator can not be applied to an enum entry.", DiagnosticKind.IsEnumEntry)
+                } else {
+                    ConeSimpleDiagnostic("An enum entry should not be used as a type.", DiagnosticKind.EnumEntryAsType)
+                }
+            } else {
+                ConeUnresolvedQualifierError(typeRef.render())
+            }
+            return ConeKotlinErrorType(diagnostic)
         }
         if (symbol is FirTypeParameterSymbol) {
             for (part in typeRef.qualifier) {
@@ -177,13 +205,14 @@ class FirTypeResolverImpl(private val session: FirSession) : FirTypeResolver() {
     override fun resolveType(
         typeRef: FirTypeRef,
         scope: FirScope,
-        areBareTypesAllowed: Boolean
+        areBareTypesAllowed: Boolean,
+        isOperandOfIsOperator: Boolean
     ): ConeKotlinType {
         return when (typeRef) {
             is FirResolvedTypeRef -> typeRef.type
             is FirUserTypeRef -> {
                 val (symbol, substitutor) = resolveToSymbol(typeRef, scope)
-                resolveUserType(typeRef, symbol, substitutor, areBareTypesAllowed)
+                resolveUserType(typeRef, symbol, substitutor, areBareTypesAllowed, isOperandOfIsOperator)
             }
             is FirFunctionTypeRef -> createFunctionalType(typeRef)
             is FirDynamicTypeRef -> ConeKotlinErrorType(ConeIntermediateDiagnostic("Not supported: ${typeRef::class.simpleName}"))
