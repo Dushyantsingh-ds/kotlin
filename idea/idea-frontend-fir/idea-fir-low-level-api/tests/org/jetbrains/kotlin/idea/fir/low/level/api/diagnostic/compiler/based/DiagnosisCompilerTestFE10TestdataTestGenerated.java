@@ -4862,6 +4862,11 @@ public class DiagnosisCompilerTestFE10TestdataTestGenerated extends AbstractDiag
                 runTest("compiler/testData/diagnostics/tests/controlStructures/whenToAnyDiscriminatingUsages.kt");
             }
 
+            @TestMetadata("whenWithNothingTypedSubject.kt")
+            public void testWhenWithNothingTypedSubject() throws Exception {
+                runTest("compiler/testData/diagnostics/tests/controlStructures/whenWithNothingTypedSubject.kt");
+            }
+
             @TestMetadata("when.kt234.kt973.kt")
             public void testWhen_kt234_kt973() throws Exception {
                 runTest("compiler/testData/diagnostics/tests/controlStructures/when.kt234.kt973.kt");
