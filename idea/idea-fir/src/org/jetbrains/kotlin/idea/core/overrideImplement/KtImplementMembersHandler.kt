@@ -92,7 +92,7 @@ internal class KtImplementMembersQuickfix(private val members: Collection<KtClas
     override fun getText() = familyName
     override fun getFamilyName() = KotlinIdeaCoreBundle.message("implement.members.handler.family")
 
-    override fun isAvailable(project: Project, editor: Editor, file: PsiFile) = isValidFor(editor, file)
+    override fun isAvailable(project: Project, editor: Editor, file: PsiFile) = true
 
     override fun collectMembersToGenerate(classOrObject: KtClassOrObject): Collection<KtClassMember> {
         return members.map { createKtClassMember(it, BodyType.FROM_TEMPLATE, false) }
@@ -105,13 +105,7 @@ internal class KtImplementAsConstructorParameterQuickfix(private val members: Co
 
     override fun getFamilyName() = KotlinIdeaCoreBundle.message("implement.members.handler.family")
 
-    override fun isAvailable(project: Project, editor: Editor, file: PsiFile) = isValidFor(editor, file)
-
-    override fun isValidForClass(classOrObject: KtClassOrObject): Boolean {
-        if (classOrObject !is KtClass || classOrObject is KtEnumEntry || classOrObject.isInterface()) return false
-        // TODO: when MPP support is ready, return false if this class is `actual` and any expect classes have primary constructor.
-        return members.any { it.isProperty }
-    }
+    override fun isAvailable(project: Project, editor: Editor, file: PsiFile) = true
 
     override fun collectMembersToGenerate(classOrObject: KtClassOrObject): Collection<KtClassMember> {
         return members.filter { it.isProperty }.map { createKtClassMember(it, BodyType.FROM_TEMPLATE, true) }
@@ -146,11 +140,16 @@ object MemberNotImplementedQuickfixFactories {
         includeImplementAsConstructorParameterQuickfix: Boolean = true
     ): List<IntentionAction> {
         val unimplementedMembers = getUnimplementedMembers(classWithUnimplementedMembers)
+        if (unimplementedMembers.isEmpty()) return emptyList()
 
         return buildList {
             add(KtImplementMembersQuickfix(unimplementedMembers))
-            if (includeImplementAsConstructorParameterQuickfix) {
-                add(KtImplementAsConstructorParameterQuickfix(unimplementedMembers))
+            if (includeImplementAsConstructorParameterQuickfix && classWithUnimplementedMembers is KtClass && classWithUnimplementedMembers !is KtEnumEntry && !classWithUnimplementedMembers.isInterface()) {
+                // TODO: when MPP support is ready, return false if this class is `actual` and any expect classes have primary constructor.
+                val unimplementedProperties = unimplementedMembers.filter { it.isProperty }
+                if (unimplementedProperties.isNotEmpty()) {
+                    add(KtImplementAsConstructorParameterQuickfix(unimplementedProperties))
+                }
             }
         }
     }
