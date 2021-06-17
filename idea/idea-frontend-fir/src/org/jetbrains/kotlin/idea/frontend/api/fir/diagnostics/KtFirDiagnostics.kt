@@ -1536,6 +1536,11 @@ sealed class KtFirDiagnostic<PSI: PsiElement> : KtDiagnosticWithPsi<PSI> {
         abstract val property: KtVariableSymbol
     }
 
+    abstract class SetterProjectedOut : KtFirDiagnostic<KtExpression>() {
+        override val diagnosticClass get() = SetterProjectedOut::class
+        abstract val property: KtVariableSymbol
+    }
+
     abstract class WrongInvocationKind : KtFirDiagnostic<PsiElement>() {
         override val diagnosticClass get() = WrongInvocationKind::class
         abstract val declaration: KtSymbol

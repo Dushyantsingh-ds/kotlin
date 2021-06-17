@@ -2488,6 +2488,14 @@ internal class CapturedMemberValInitializationImpl(
     override val firDiagnostic: FirPsiDiagnostic by weakRef(firDiagnostic)
 }
 
+internal class SetterProjectedOutImpl(
+    override val property: KtVariableSymbol,
+    firDiagnostic: FirPsiDiagnostic<*>,
+    override val token: ValidityToken,
+) : KtFirDiagnostic.SetterProjectedOut(), KtAbstractFirDiagnostic<KtExpression> {
+    override val firDiagnostic: FirPsiDiagnostic<*> by weakRef(firDiagnostic)
+}
+
 internal class WrongInvocationKindImpl(
     override val declaration: KtSymbol,
     override val requiredRange: EventOccurrencesRange,
