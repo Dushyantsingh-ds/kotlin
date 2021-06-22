@@ -38,7 +38,7 @@ which will help keep your pull request simple and easy to apply.
 
 ## Intention/QuickFix/Inspection
 
-Please read the [Intention/QuickFix/Inspection Quick Notes](intentions_inspections_quickfixes.md) if you are
+Please read the [Intention/QuickFix/Inspection ](intentions_inspections_quickfixes.md)Quick Notes if you are
 going to implement an inspection or intention or add a quick fix.
 
 ## Checklist
